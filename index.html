@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kalkulator Kebutuhan Bahan Kimia</title>
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--ink:#20242a;--muted:#69717d;--line:#e1e4e8;--accent:#222;}
+*{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+.container{max-width:1100px;margin:auto;padding:28px 18px 50px} h1{margin:0 0 6px;font-size:28px} .sub{color:var(--muted);margin:0 0 24px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;margin-bottom:16px;box-shadow:0 4px 16px #00000008}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:12px}
+.sample{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;gap:10px;align-items:center;cursor:pointer;background:#fff}
+.sample:has(input:checked){border-color:#222;background:#f1f2f4}
+.sample input[type=checkbox]{width:18px;height:18px;flex:0 0 auto}
+.name{font-weight:700;flex:1;min-width:0}
+.qty-label{font-size:12px;color:var(--muted);white-space:nowrap}
+.qty{width:88px;min-width:72px;padding:8px 9px;border:1px solid #aeb6c0;border-radius:8px;background:#fff;color:var(--ink);font-weight:700;text-align:center}
+.qty:disabled{background:#f0f1f3;color:#69717d;border-color:#e1e4e8}
+.sample:has(input[type=checkbox]:checked) .qty:not(:disabled){border-color:#222;box-shadow:0 0 0 2px #22222212}
+.sample:has(input[type=checkbox]:checked) .qty-label{color:var(--ink);font-weight:600}
+.rowhead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px} label.small{font-size:13px;color:var(--muted)}
+input[type=number]{font:inherit} .months{width:160px;padding:11px;border:1px solid #cfd4da;border-radius:10px}
+button{border:0;border-radius:10px;padding:12px 18px;font-weight:700;cursor:pointer} .primary{background:#20242a;color:white} .secondary{background:#eef0f2;color:#20242a}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+table{width:100%;border-collapse:collapse} th,td{padding:11px 9px;border-bottom:1px solid var(--line);text-align:left} th{font-size:13px;color:var(--muted);background:#fafafa} td.num,th.num{text-align:right}
+.badge{display:inline-block;padding:4px 8px;border-radius:99px;background:#eef0f2;font-size:12px} .empty{color:var(--muted);text-align:center;padding:25px}
+.note{font-size:13px;color:var(--muted);line-height:1.55} .formula{background:#f7f7f8;border-radius:10px;padding:12px;font-family:ui-monospace,SFMono-Regular,monospace;font-size:12px;white-space:pre-wrap}
+@media(max-width:600px){.container{padding:20px 12px} h1{font-size:23px}.sample{gap:8px;padding:10px}.name{font-size:14px}.qty{width:76px;min-width:76px;padding:8px 5px}.qty-label{font-size:11px}th:nth-child(3),td:nth-child(3){display:none}}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Kalkulator Kebutuhan Bahan Kimia</h1>
+  <p class="sub">Pilih jenis sampel, masukkan jumlah sampel, tentukan interval pengerjaan, lalu tekan <b>Enter</b>.</p>
+
+  <section class="card">
+    <div class="rowhead"><h2 style="margin:0;font-size:18px">1. Jenis sampel</h2><button class="secondary" id="clearBtn">Reset</button></div>
+    <div class="grid" id="samples"></div>
+  </section>
+
+  <section class="card">
+    <div class="rowhead">
+      <div><h2 style="margin:0;font-size:18px">2. Interval pengerjaan</h2><label class="small">Satuan: bulan</label></div>
+      <input id="months" class="months" type="number" min="1" step="1" value="12" aria-label="Interval bulan">
+    </div>
+    <div class="actions"><button class="primary" id="calcBtn">Enter — Hitung kebutuhan</button></div>
+  </section>
+
+  <section class="card" id="resultCard" style="display:none">
+    <div class="rowhead"><h2 style="margin:0;font-size:18px">3. Hasil kebutuhan</h2><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span id="summary" class="badge"></span><button class="primary" id="excelBtn" type="button" style="display:none">⬇ Download Excel</button></div></div>
+    <div style="overflow:auto"><table><thead><tr><th>No</th><th>Bahan kimia / material</th><th>Kode</th><th class="num">Kebutuhan</th><th>Satuan</th><th>Dasar perhitungan</th></tr></thead><tbody id="result"></tbody></table></div>
+  </section>
+
+  <section class="card">
+    <h2 style="margin:0 0 12px;font-size:18px">Aturan perhitungan</h2>
+    <div class="note">
+      <p><b>Interval = Sampel:</b> kebutuhan tidak dipengaruhi oleh interval bulan. Kebutuhan dikalikan jumlah sampel yang diinput untuk jenis sampel tersebut.</p>
+      <p><b>Interval = Bulan:</b> kebutuhan dihitung berdasarkan frekuensi pada kolom <i>Jumlah</i>. Contoh: 4 kg dengan Jumlah 6 berarti 4 kg setiap 6 bulan. Untuk 12 bulan → 8 kg.</p>
+      <p><b>Special = Combine:</b> jika kode bahan kimia sama dan periode bulan sama, kebutuhan dianggap satu pemakaian bersama, bukan dikalikan karena beberapa jenis sampel. Untuk keamanan kalkulator memakai satu kebutuhan bersama (nilai terbesar bila ada perbedaan).</p>
+      <p><b>Kode sama:</b> dianggap material/bahan kimia yang sama meskipun nama material pada baris berbeda.</p>
+    </div>
+  </section>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+let lastExportResults = [];
+let lastExportParameters = [];
+const DATA=[{"sample": "NPK", "code": "29", "special": "", "material": "Tinfoil", "need": 1.0, "unit": "pcs", "period": 1.0, "interval": "Sampel"}, {"sample": "NPK", "code": "6", "special": "", "material": "Ammonium Heptamolibdate Tetrahydrate", "need": 0.8, "unit": "g", "period": 1.0, "interval": "Sampel"}, {"sample": "NPK", "code": "7", "special": "", "material": "Ammonium Monovanadate", "need": 0.04, "unit": "g", "period": 1.0, "interval": "Sampel"}, {"sample": "NPK", "code": "22", "special": "", "material": "Perchloric Acid", "need": 49.0, "unit": "mL", "period": 1.0, "interval": "Sampel"}, {"sample": "NPK", "code": "12", "special": "", "material": "Citric Acid", "need": 3.0, "unit": "g", "period": 1.0, "interval": "Sampel"}, {"sample": "NPK", "code": "27", "special": "", "material": "Potassium Dihydrogen Phosphate", "need": 5.5, "unit": "g", "period": 1.0, "interval": "Bulan"}, {"sample": "NPK", "code": "21", "special": "", "material": "Nitric Acid", "need": 39.0, "unit": "mL", "period": 1.0, "interval": "Sampel"}, {"sample": "NPK", "code": "15", "special": "", "material": "Filter Paper no. 42", "need": 3.0, "unit": "pcs", "period": 1.0, "interval": "Sampel"}, {"sample": "NPK", "code": "14", "special": "", "material": "Filter Paper no. 41", "need": 1.0, "unit": "pcs", "period": 1.0, "interval": "Sampel"}, {"sample": "NPK", "code": "11", "special": "", "material": "Cesium Chloride", "need": 0.1267, "unit": "g", "period": 1.0, "interval": "Sampel"}, {"sample": "NPK", "code": "28", "special": "combine", "material": "Potassium Standard Solution", "need": 20.0, "unit": "mL", "period": 1.0, "interval": "Bulan"}, {"sample": "NPK", "code": "18", "special": "combine", "material": "Magnesium Perchlorate", "need": 4.0, "unit": "Kg", "period": 6.0, "interval": "Bulan"}, {"sample": "NPK", "code": "16", "special": "", "material": "Hydrochloric Acid", "need": 3.0, "unit": "mL", "period": 1.0, "interval": "Sampel"}, {"sample": "NPK", "code": "20", "special": "combine", "material": "Multi Element Standard Solution", "need": 10.0, "unit": "mL", "period": 1.0, "interval": "Bulan"}, {"sample": "TSP", "code": "6", "special": "", "material": "Ammonium Heptamolibdate Tetrahydrate", "need": 0.8, "unit": "g", "period": 1.0, "interval": "Sampel"}, {"sample": "TSP", "code": "7", "special": "", "material": "Ammonium Monovanadate", "need": 0.04, "unit": "g", "period": 1.0, "interval": "Sampel"}, {"sample": "TSP", "code": "22", "special": "", "material": "Perchloric Acid", "need": 39.0, "unit": "mL", "period": 1.0, "interval": "Sampel"}, {"sample": "TSP", "code": "12", "special": "", "material": "Citric Acid", "need": 3.0, "unit": "g", "period": 1.0, "interval": "Sampel"}, {"sample": "TSP", "code": "27", "special": "", "material": "Potassium Dihydrogen Phosphate", "need": 2.0, "unit": "g", "period": 1.0, "interval": "Bulan"}, {"sample": "TSP", "code": "21", "special": "", "material": "Nitric Acid", "need": 24.0, "unit": "mL", "period": 1.0, "interval": "Sampel"}, {"sample": "TSP", "code": "15", "special": "", "material": "Filter Paper no. 42", "need": 1.0, "unit": "pcs", "period": 1.0, "interval": "Sampel"}, {"sample": "TSP", "code": "14", "special": "", "material": "Filter Paper no. 41", "need": 1.0, "unit": "pcs", "period": 1.0, "interval": "Sampel"}, {"sample": "TSP", "code": "18", "special": "combine", "material": "Magnesium Perchlorate", "need": 4.0, "unit": "Kg", "period": 6.0, "interval": "Bulan"}, {"sample": "RP", "code": "6", "special": "", "material": "Ammonium Heptamolibdate Tetrahydrate", "need": 0.8, "unit": "g", "period": 1.0, "interval": "Sampel"}, {"sample": "RP", "code": "7", "special": "", "material": "Ammonium Monovanadate", "need": 0.04, "unit": "g", "period": 1.0, "interval": "Sampel"}, {"sample": "RP", "code": "22", "special": "", "material": "Perchloric Acid", "need": 39.0, "unit": "mL", "period": 1.0, "interval": "Sampel"}, {"sample": "RP", "code": "12", "special": "", "material": "Citric Acid", "need": 3.0, "unit": "g", "period": 1.0, "interval": "Sampel"}, {"sample": "RP", "code": "27", "special": "", "material": "Potassium Dihydrogen Phosphate", "need": 2.0, "unit": "g", "period": 1.0, "interval": "Bulan"}, {"sample": "RP", "code": "21", "special": "", "material": "Nitric Acid", "need": 24.0, "unit": "mL", "period": 1.0, "interval": "Sampel"}, {"sample": "RP", "code": "15", "special": "", "material": "Filter Paper no. 42", "need": 1.0, "unit": "pcs", "period": 1.0, "interval": "Sampel"}, {"sample": "RP", "code": "14", "special": "", "material": "Filter Paper no. 41", "need": 1.0, "unit": "pcs", "period": 1.0, "interval": "Sampel"}, {"sample": "RP", "code": "18", "special": "combine", "material": "Magnesium Perchlorate", "need": 4.0, "unit": "Kg", "period": 6.0, "interval": "Bulan"}, {"sample": "Borate", "code": "20", "special": "combine", "material": "Multi Element Standard Solution", "need": 10.0, "unit": "mL", "period": 1.0, "interval": "Bulan"}, {"sample": "Borate", "code": "21", "special": "", "material": "Nitric Acid", "need": 9.0, "unit": "mL", "period": 1.0, "interval": "Sampel"}, {"sample": "Borate", "code": "15", "special": "", "material": "Filter Paper no. 42", "need": 1.0, "unit": "pcs", "period": 1.0, "interval": "Sampel"}, {"sample": "Borate", "code": "16", "special": "", "material": "Hydrochloric Acid", "need": 3.0, "unit": "mL", "period": 1.0, "interval": "Sampel"}, {"sample": "Borate", "code": "18", "special": "combine", "material": "Magnesium Perchlorate", "need": 4.0, "unit": "Kg", "period": 6.0, "interval": "Bulan"}, {"sample": "Zincop", "code": "20", "special": "combine", "material": "Multi Element Standard Solution", "need": 10.0, "unit": "mL", "period": 1.0, "interval": "Bulan"}, {"sample": "Zincop", "code": "21", "special": "", "material": "Nitric Acid", "need": 9.0, "unit": "mL", "period": 1.0, "interval": "Sampel"}, {"sample": "Zincop", "code": "15", "special": "", "material": "Filter Paper no. 42", "need": 1.0, "unit": "pcs", "period": 1.0, "interval": "Sampel"}, {"sample": "Zincop", "code": "16", "special": "", "material": "Hydrochloric Acid", "need": 3.0, "unit": "mL", "period": 1.0, "interval": "Sampel"}, {"sample": "Zincop", "code": "13", "special": "", "material": "Combution Cat", "need": 0.2, "unit": "g", "period": 1.0, "interval": "Sampel"}, {"sample": "Zincop", "code": "18", "special": "combine", "material": "Magnesium Perchlorate", "need": 4.0, "unit": "Kg", "period": 6.0, "interval": "Bulan"}, {"sample": "Zincopbor", "code": "20", "special": "combine", "material": "Multi Element Standard Solution", "need": 10.0, "unit": "mL", "period": 1.0, "interval": "Bulan"}, {"sample": "Zincopbor", "code": "21", "special": "", "material": "Nitric Acid", "need": 9.0, "unit": "mL", "period": 1.0, "interval": "Sampel"}, {"sample": "Zincopbor", "code": "15", "special": "", "material": "Filter Paper no. 42", "need": 1.0, "unit": "pcs", "period": 1.0, "interval": "Sampel"}, {"sample": "Zincopbor", "code": "16", "special": "", "material": "Hydrochloric Acid", "need": 3.0, "unit": "mL", "period": 1.0, "interval": "Sampel"}, {"sample": "Zincopbor", "code": "13", "special": "", "material": "Combution Cat", "need": 0.2, "unit": "g", "period": 1.0, "interval": "Sampel"}, {"sample": "Zincopbor", "code": "18", "special": "combine", "material": "Magnesium Perchlorate", "need": 4.0, "unit": "Kg", "period": 6.0, "interval": "Bulan"}, {"sample": "KCl", "code": "8", "special": "", "material": "Ammonium Oxalate", "need": 2.0, "unit": "g", "period": 1.0, "interval": "Sampel"}, {"sample": "KCl", "code": "27", "special": "", "material": "Potassium Dihydrogen Phosphate", "need": 1.4447, "unit": "g", "period": 1.0, "interval": "Bulan"}, {"sample": "KCl", "code": "8", "special": "", "material": "Ammonium Oxalate", "need": 0.2, "unit": "g", "period": 1.0, "interval": "Bulan"}, {"sample": "KCl", "code": "15", "special": "", "material": "Filter Paper no. 42", "need": 1.0, "unit": "pcs", "period": 1.0, "interval": "Sampel"}, {"sample": "KCl", "code": "28", "special": "combine", "material": "Potassium Standard Solution", "need": 20.0, "unit": "mL", "period": 1.0, "interval": "Bulan"}, {"sample": "KCl", "code": "18", "special": "combine", "material": "Magnesium Perchlorate", "need": 4.0, "unit": "Kg", "period": 6.0, "interval": "Bulan"}, {"sample": "Dolomite", "code": "10", "special": "combine", "material": "Calcium Standard Solution", "need": 10.0, "unit": "mL", "period": 1.0, "interval": "Bulan"}, {"sample": "Dolomite", "code": "19", "special": "combine", "material": "Magnesium Standard Solution", "need": 1.0, "unit": "mL", "period": 1.0, "interval": "Bulan"}, {"sample": "Dolomite", "code": "17", "special": "", "material": "Lanthanum Oxide", "need": 1.173, "unit": "g", "period": 1.0, "interval": "Sampel"}, {"sample": "Dolomite", "code": "16", "special": "", "material": "Hydrochloric Acid", "need": 22.5, "unit": "mL", "period": 1.0, "interval": "Sampel"}, {"sample": "Dolomite", "code": "14", "special": "", "material": "Filter Paper no. 41", "need": 1.0, "unit": "pcs", "period": 1.0, "interval": "Sampel"}, {"sample": "Dolomite", "code": "18", "special": "combine", "material": "Magnesium Perchlorate", "need": 4.0, "unit": "Kg", "period": 6.0, "interval": "Bulan"}, {"sample": "Urea", "code": "29", "special": "", "material": "Tinfoil", "need": 1.0, "unit": "pcs", "period": 1.0, "interval": "Sampel"}, {"sample": "Urea", "code": "18", "special": "combine", "material": "Magnesium Perchlorate", "need": 4.0, "unit": "Kg", "period": 6.0, "interval": "Bulan"}, {"sample": "Kompos", "code": "29", "special": "", "material": "Tinfoil", "need": 1.0, "unit": "pcs", "period": 1.0, "interval": "Sampel"}, {"sample": "Kompos", "code": "18", "special": "combine", "material": "Magnesium Perchlorate", "need": 4.0, "unit": "Kg", "period": 6.0, "interval": "Bulan"}, {"sample": "Kompos", "code": "26", "special": "combine", "material": "Potassium Chloride", "need": 0.7455, "unit": "g", "period": 1.0, "interval": "Bulan"}, {"sample": "Kompos", "code": "9", "special": "combine", "material": "Calcium Chloride", "need": 1.47, "unit": "g", "period": 1.0, "interval": "Bulan"}, {"sample": "Kompos", "code": "24", "special": "combine", "material": "pH 4 Buffer Solution", "need": 1000.0, "unit": "mL", "period": 6.0, "interval": "Bulan"}, {"sample": "Kompos", "code": "25", "special": "combine", "material": "pH 7 Buffer Solution", "need": 1000.0, "unit": "mL", "period": 6.0, "interval": "Bulan"}, {"sample": "Kompos", "code": "23", "special": "combine", "material": "pH 10 Buffer Solution", "need": 1000.0, "unit": "mL", "period": 6.0, "interval": "Bulan"}, {"sample": "Sekam Bakar", "code": "18", "special": "combine", "material": "Magnesium Perchlorate", "need": 4.0, "unit": "Kg", "period": 6.0, "interval": "Bulan"}, {"sample": "Sekam Bakar", "code": "26", "special": "combine", "material": "Potassium Chloride", "need": 0.7455, "unit": "g", "period": 1.0, "interval": "Bulan"}, {"sample": "Sekam Bakar", "code": "9", "special": "combine", "material": "Calcium Chloride", "need": 1.47, "unit": "g", "period": 1.0, "interval": "Bulan"}, {"sample": "Sekam Bakar", "code": "24", "special": "combine", "material": "pH 4 Buffer Solution", "need": 1000.0, "unit": "mL", "period": 6.0, "interval": "Bulan"}, {"sample": "Sekam Bakar", "code": "25", "special": "combine", "material": "pH 7 Buffer Solution", "need": 1000.0, "unit": "mL", "period": 6.0, "interval": "Bulan"}, {"sample": "Sekam Bakar", "code": "23", "special": "combine", "material": "pH 10 Buffer Solution", "need": 1000.0, "unit": "mL", "period": 6.0, "interval": "Bulan"}, {"sample": "Sekam Bakar", "code": "5", "special": "combine", "material": "84 μS Standar conductivity", "need": 480.0, "unit": "mL", "period": 6.0, "interval": "Bulan"}, {"sample": "Sekam Bakar", "code": "3", "special": "combine", "material": "1413 μS Standar conductivity", "need": 480.0, "unit": "mL", "period": 6.0, "interval": "Bulan"}, {"sample": "Sekam Bakar", "code": "2", "special": "combine", "material": "12.88 mS Standar conductivity", "need": 480.0, "unit": "mL", "period": 6.0, "interval": "Bulan"}, {"sample": "Sekam Bakar", "code": "1", "special": "combine", "material": "111.8 mS Standar conductivity", "need": 480.0, "unit": "mL", "period": 6.0, "interval": "Bulan"}, {"sample": "Sekam Bakar", "code": "4", "special": "combine", "material": "500 μS Standar conductivity", "need": 480.0, "unit": "mL", "period": 6.0, "interval": "Bulan"}, {"sample": "Cocopeat", "code": "18", "special": "combine", "material": "Magnesium Perchlorate", "need": 4.0, "unit": "Kg", "period": 6.0, "interval": "Bulan"}, {"sample": "Cocopeat", "code": "26", "special": "combine", "material": "Potassium Chloride", "need": 0.7455, "unit": "g", "period": 1.0, "interval": "Bulan"}, {"sample": "Cocopeat", "code": "9", "special": "combine", "material": "Calcium Chloride", "need": 1.47, "unit": "g", "period": 1.0, "interval": "Bulan"}, {"sample": "Cocopeat", "code": "24", "special": "combine", "material": "pH 4 Buffer Solution", "need": 1000.0, "unit": "mL", "period": 6.0, "interval": "Bulan"}, {"sample": "Cocopeat", "code": "25", "special": "combine", "material": "pH 7 Buffer Solution", "need": 1000.0, "unit": "mL", "period": 6.0, "interval": "Bulan"}, {"sample": "Cocopeat", "code": "23", "special": "combine", "material": "pH 10 Buffer Solution", "need": 1000.0, "unit": "mL", "period": 6.0, "interval": "Bulan"}];
+const SAMPLES=["NPK", "TSP", "RP", "Borate", "Zincop", "Zincopbor", "KCl", "Dolomite", "Urea", "Kompos", "Sekam Bakar", "Cocopeat"];
+const samplesEl=document.getElementById('samples');
+
+function fmt(n){
+  return new Intl.NumberFormat('id-ID',{maximumFractionDigits:4}).format(n);
+}
+
+SAMPLES.forEach((s,i)=>{
+  const wrap=document.createElement('label'); wrap.className='sample';
+  wrap.innerHTML=`<input type="checkbox" data-sample="${s}"><span class="name">${s}</span><span class="qty-label">Jumlah:</span><input class="qty" data-qty="${s}" type="number" min="0" step="1" value="1" disabled title="Jumlah sampel yang diasumsikan">`;
+  const cb=wrap.querySelector('input[type=checkbox]');
+  const q=wrap.querySelector('[data-qty]');
+  cb.addEventListener('change',()=>{q.disabled=!cb.checked;if(cb.checked)q.focus();});
+  q.addEventListener('click',e=>e.stopPropagation());
+  q.addEventListener('change',()=>{if(Number(q.value)<0)q.value=0;});
+  samplesEl.appendChild(wrap);
+});
+
+function calculate(){
+  const months=Math.max(1,Number(document.getElementById('months').value)||1);
+  const selected=[...document.querySelectorAll('[data-sample]:checked')].map(cb=>{
+    const s=cb.dataset.sample;
+    const q=Number(document.querySelector(`[data-qty="${CSS.escape(s)}"]`).value)||0;
+    return {sample:s,count:q};
+  }).filter(x=>x.count>0);
+  if(!selected.length){alert('Pilih minimal satu jenis sampel dan isi jumlah sampelnya.');return;}
+
+  const bySample=new Map(selected.map(x=>[x.sample,x.count]));
+  const candidates=DATA.filter(r=>bySample.has(r.sample));
+  const normal=new Map(), combine=new Map();
+
+  for(const r of candidates){
+    const baseCount=bySample.get(r.sample);
+    const isSample=r.interval.toLowerCase()==='sampel';
+    let total, detail;
+    if(isSample){
+      total=r.need*baseCount;
+      detail=`${fmt(r.need)} ${r.unit}/sampel × ${fmt(baseCount)} sampel`;
+    } else {
+      const period=Math.max(1,r.period||1);
+      const cycles=Math.ceil(months/period);
+      // Kebutuhan berbasis bulan tetap mengikuti jumlah sampel yang
+      // diasumsikan untuk jenis sampel tersebut.
+      // Pengecualian: material 'combine' dihitung sebagai satu kebutuhan
+      // bersama dalam periode yang sama, sehingga tidak dikali jumlah sampel.
+      if(r.special==='combine'){
+        total=r.need*cycles;
+        detail=`${fmt(r.need)} ${r.unit} setiap ${fmt(period)} bulan × ${cycles} kali (combine)`;
+      } else {
+        total=r.need*baseCount*cycles;
+        detail=`${fmt(r.need)} ${r.unit}/sampel × ${fmt(baseCount)} sampel × ${cycles} kali (${fmt(period)} bulan)`;
+      }
+    }
+    const key=isSample ? `${r.code}|sample|${r.unit}|${r.material}` : `${r.code}|month|${r.period}|${r.unit}`;
+    const target=r.special==='combine' ? combine : normal;
+    if(target.has(key)){
+      const old=target.get(key);
+      if(r.special==='combine'){
+        // Shared material: do not multiply across sample types.
+        if(r.need>old.need) target.set(key,{...old,need:r.need,total,material:r.material,detail});
+      } else {
+        old.total+=total;
+        old.samples.push(r.sample);
+        old.detailParts.push(detail);
+      }
+    } else {
+      target.set(key,{code:r.code,material:r.material,unit:r.unit,need:r.need,total,special:r.special,interval:r.interval,period:r.period,samples:[r.sample],detailParts:[detail],detail});
+    }
+  }
+
+  const all=[...normal.values(),...combine.values()].sort((a,b)=>a.material.localeCompare(b.material,'id'));
+  lastExportResults = all.map(r => ({
+    "Nama Material": r.material,
+    "Kode": r.code,
+    "Kebutuhan": r.total,
+    "Satuan": r.unit,
+    "Dasar Perhitungan": r.special==='combine' ? r.detail + " (combine)" : r.detailParts.join(' + '),
+    "Jenis Sampel": [...new Set(r.samples)].join(', '),
+    "Kategori": r.special==='combine' ? 'combine' : 'reguler'
+  }));
+  lastExportParameters = [
+    {"Parameter":"Interval pengerjaan","Nilai":months,"Satuan":"bulan"},
+    ...selected.map(x => ({"Parameter":"Jumlah sampel — " + x.sample,"Nilai":x.count,"Satuan":"sampel"}))
+  ];
+
+  const tbody=document.getElementById('result'); tbody.innerHTML='';
+  all.forEach((r,i)=>{
+    const tr=document.createElement('tr');
+    const detail=r.special==='combine'
+      ? `${r.detail} <span class="badge">combine</span>`
+      : r.detailParts.join(' + ');
+    tr.innerHTML=`<td>${i+1}</td><td><b>${r.material}</b></td><td>${r.code}</td><td class="num"><b>${fmt(r.total)}</b></td><td>${r.unit}</td><td>${detail}</td>`;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('summary').textContent=`${all.length} material`;
+  document.getElementById('resultCard').style.display='';
+  document.getElementById('excelBtn').style.display='';
+}
+
+document.getElementById('excelBtn').addEventListener('click',()=>{
+  if (!lastExportResults.length) {
+    alert('Hitung kebutuhan terlebih dahulu sebelum mengunduh Excel.');
+    return;
+  }
+  if (typeof XLSX === 'undefined') {
+    alert('Pustaka Excel belum berhasil dimuat. Periksa koneksi internet lalu muat ulang halaman.');
+    return;
+  }
+  try {
+    const wb = XLSX.utils.book_new();
+    const wsResults = XLSX.utils.json_to_sheet(lastExportResults);
+    wsResults['!cols'] = [
+      {wch:38},{wch:10},{wch:16},{wch:12},{wch:66},{wch:34},{wch:14}
+    ];
+    XLSX.utils.book_append_sheet(wb, wsResults, 'Kebutuhan Material');
+
+    const wsParams = XLSX.utils.json_to_sheet(lastExportParameters);
+    wsParams['!cols'] = [{wch:34},{wch:18},{wch:14}];
+    XLSX.utils.book_append_sheet(wb, wsParams, 'Parameter');
+
+    const stamp = new Date().toISOString().slice(0,10);
+    XLSX.writeFile(wb, `Kebutuhan_Bahan_Kimia_${stamp}.xlsx`);
+  } catch (err) {
+    console.error(err);
+    alert('Gagal membuat file Excel. Silakan coba lagi dan pastikan browser mengizinkan unduhan.');
+  }
+});
+
+document.getElementById('calcBtn').addEventListener('click',calculate);
+document.getElementById('months').addEventListener('keydown',e=>{if(e.key==='Enter')calculate();});
+document.getElementById('clearBtn').addEventListener('click',()=>{
+  document.querySelectorAll('[data-sample]').forEach(x=>x.checked=false);
+  document.querySelectorAll('[data-qty]').forEach(x=>{x.value=1;x.disabled=true;});
+  document.getElementById('months').value=12;
+  document.getElementById('resultCard').style.display='none';
+  document.getElementById('excelBtn').style.display='none';
+  lastExportResults=[];
+  lastExportParameters=[];
+});
+</script>
+</body>
+</html>
